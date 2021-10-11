@@ -18,3 +18,26 @@ Create the following file with your secret WiFi credentials:
 const char *SSID = "ithurtswhenip";
 const char *PASSWORD = "hunter";
 ```
+
+# Home Assistant Integration
+You can read the device data from Home Assistant after setting up a Sensor entity configuration:
+```yaml
+  - platform: rest
+    name: device
+    resource: http://YOUR_DEVICE_IP/
+    json_attributes:
+    - temperature
+    - humidity
+    method: GET
+    value_template: 'OK'
+  - platform: template
+    sensors:
+      device_temperature:
+        value_template: '{{ states.sensor.device.attributes.temperature }}'
+        device_class: temperature
+        unit_of_measurement: '°F'
+      device_humidity:
+        value_template: '{{ states.sensor.device.attributes.humidity }}'
+        device_class: humidity
+        unit_of_measurement: '%'
+```
