@@ -9,3 +9,12 @@ Temperature is displayed in Fahrenheit. Change [`DISPLAY_FAHRENHEIT` on line 12]
 - [DHT22](https://www.adafruit.com/product/385) x1
 
 - Arduino, ESP32, or ESP8826
+
+### `firmware/secrets.h`
+
+Create the following file with your secret WiFi credentials:
+
+```c
+const char *SSID = "ithurtswhenip";
+const char *PASSWORD = "hunter";
+```
