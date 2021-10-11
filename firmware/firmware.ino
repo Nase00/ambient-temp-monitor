@@ -1,11 +1,15 @@
-// Demo the quad alphanumeric display LED backpack kit
-// scrolls through every character, then scrolls Serial
-// input onto the display
+// https://learn.adafruit.com/dht/overview
 
 #include "Adafruit_LEDBackpack.h"
 #include <Adafruit_GFX.h>
+#include <Adafruit_Sensor.h>
 #include <DHT.h>
+#include <DHT_U.h>
 #include <Wire.h>
+#include <ESP8266WiFi.h>
+#include <WiFiClient.h>
+#include <ESP8266WebServer.h>
+#include <ESP8266mDNS.h>
 
 #define DHTPIN 13
 #define DHTTYPE DHT22
@@ -13,11 +17,21 @@
 
 Adafruit_AlphaNum4 tempDisplay = Adafruit_AlphaNum4();
 Adafruit_AlphaNum4 humidDisplay = Adafruit_AlphaNum4();
-DHT dht(DHTPIN, DHTTYPE);
+DHT_Unified dht(DHTPIN, DHTTYPE);
+uint32_t delayMS;
+
+float cToF(float celciusTemp) {
+  return (celciusTemp * 1.8) + 32;
+}
 
 void setup() {
   Serial.begin(9600);
   dht.begin();
+
+  sensor_t sensor;
+  dht.temperature().getSensor(&sensor);
+  dht.humidity().getSensor(&sensor);
+  delayMS = sensor.min_delay / 1000;
 
   tempDisplay.begin(0x72);
   humidDisplay.begin(0x70);
@@ -33,42 +47,38 @@ void printToDisplay(Adafruit_AlphaNum4 display, String string) {
 }
 
 void loop() {
-  // Reading temperature or humidity takes about 250 milliseconds!
-  // Sensor readings may also be up to 2 seconds 'old' (its a very slow sensor)
-  float h = dht.readHumidity();
-  String humidity = String(h);
+  delay(delayMS);
 
-  float t = dht.readTemperature(DISPLAY_FAHRENHEIT);
-  String temperature = String(t);
+  sensors_event_t event;
+  dht.temperature().getEvent(&event);
 
-  if (isnan(h) || isnan(t) || isnan(f)) {
-    Serial.println(F("Failed to read from DHT sensor!"));
-    return; // TODO display err on alphanumeric display
+  if (isnan(event.temperature)) {
+    Serial.println(F("Error reading temperature!"));
+    printToDisplay(tempDisplay, String(0));
+  } else {
+    Serial.print(F("Temperature: "));
+    Serial.print(String(event.temperature));
+    Serial.println(F("°C"));
+    if (DISPLAY_FAHRENHEIT) {
+      printToDisplay(tempDisplay, String(cToF(event.temperature)));
+    } else {
+      printToDisplay(tempDisplay, String(event.temperature));
+    }
+  }
+
+  dht.humidity().getEvent(&event);
+  if (isnan(event.relative_humidity)) {
+    Serial.println(F("Error reading humidity!"));
+    printToDisplay(humidDisplay, String(0));
+  } else {
+    Serial.print(F("Humidity: "));
+    Serial.print(String(event.relative_humidity));
+    Serial.println(F("%"));
+    printToDisplay(humidDisplay, String(event.relative_humidity));
   }
 
   char c = Serial.read();
-  if (!isprint(c))
-    return; // only printable!
-
-  printToDisplay(humidDisplay, humidity);
-  printToDisplay(tempDisplay, temperature);
-
-  // Compute heat index in Fahrenheit (the default)
-  float hif = dht.computeHeatIndex(f, h);
-  // Compute heat index in Celsius (isFahreheit = false)
-  float hic = dht.computeHeatIndex(t, h, false);
-
-  Serial.print(F("Humidity: "));
-  Serial.print(h);
-  Serial.print(F("%  Temperature: "));
-  Serial.print(t);
-  Serial.print(F("°C "));
-  Serial.print(f);
-  Serial.print(F("°F  Heat index: "));
-  Serial.print(hic);
-  Serial.print(F("°C "));
-  Serial.print(hif);
-  Serial.println(F("°F"));
+  if (!isprint(c)) return; // only printable!
 
   delay(200);
 }
